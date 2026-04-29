@@ -1,0 +1,22 @@
+# Ignore compiled and cache files
+auto-save-list/
+backup/
+elpa/
+eln-cache/
+*.elc
+*.eln
+
+# Ignore transient state
+recentf
+places
+bookmarks
+network-security.data
+transient/
+history
+ido.last
+filesets-cache.el
+eshell/
+
+# Keep lisp/ directory for custom configs
+!lisp/
+EOF
