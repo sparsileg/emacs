@@ -1,6 +1,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; ~/.emacs - Emacs Configuration
-;; Organized for clarity and maintainability
+;; Using use-package for better package management
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -21,23 +21,13 @@
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
 (package-initialize)
 
-;; Install packages automatically if missing
-(setq package-selected-packages
-      '(markdown-mode
-        rust-mode
-        typescript-mode
-        svelte-mode
-        yaml-mode
-        company              ; autocomplete
-        company-web          ; web completion
-        flyspell             ; spell checking
-        lsp-mode             ; Language Server Protocol
-        lsp-ui               ; LSP UI enhancements
-        ))
+;; Bootstrap use-package
+(unless (package-installed-p 'use-package)
+  (package-refresh-contents)
+  (package-install 'use-package))
 
-;; Uncomment to auto-install missing packages on startup
-;; (unless package-archive-contents (package-refresh-contents))
-;; (package-install-selected-packages)
+(require 'use-package)
+(setq use-package-always-ensure t)  ; Auto-install packages if missing
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; PERFORMANCE OPTIMIZATION
@@ -52,7 +42,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Window geometry
-(setq initial-frame-alist '((width . 120) (height . 60) (top . 2) (left . 650)))
+(setq initial-frame-alist '((width . 130) (height . 115) (top . 2) (right . 2)))
 
 ;; Basic UI
 (setq inhibit-startup-message t)          ; Skip startup screen
@@ -160,6 +150,197 @@
     (insert " ")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; PACKAGES (using use-package)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Which-key: Show available keybindings as you type
+;; Shows a popup with all possible completions when you pause mid-command
+;;
+;; USAGE:
+;;   Press C-x and wait a moment → see all C-x ... commands
+;;   Press C-c and wait → see all C-c ... commands
+;;   Press C-c p and wait → see all Projectile commands
+;;
+;; EXAMPLE:
+;;   You remember the command starts with C-x but forget the rest?
+;;   Press C-x, pause, and which-key shows: C-x g (magit), C-x b (buffers), etc.
+;;
+;; TIP: Invaluable for learning Emacs keybindings!
+(use-package which-key
+  :config
+  (which-key-mode))
+
+;; Projectile: Project management and navigation
+;; Automatically detects projects (git repos, Cargo.toml, package.json, etc.)
+;;
+;; COMMON COMMANDS:
+;;   C-c p f   - Find file in project (fuzzy search within project only)
+;;   C-c p s g - Search (grep) across entire project for text
+;;   C-c p p   - Switch to another project (remembers recent projects)
+;;   C-c p b   - Switch to buffer in current project
+;;   C-c p d   - Find directory in project
+;;   C-c p c   - Run compile command for project
+;;   C-c p k   - Kill all project buffers
+;;   C-c p !   - Run shell command in project root
+;;   C-c p R   - Replace text across entire project
+;;
+;; WORKFLOW EXAMPLE:
+;;   1. Open any file in ~/Projects/Photyx/
+;;   2. Projectile auto-detects it as a project
+;;   3. Press C-c p f → type "logging" → instantly jump to logging.rs
+;;   4. Press C-c p s g → search for "handle_click" across all files
+;;
+;; TIP: After pressing C-c p, wait a moment - which-key will show all options!
+(use-package projectile
+  :config
+  (projectile-mode +1)
+  :bind-keymap
+  ("C-c p" . projectile-command-map))
+
+;; Magit: Professional Git interface - the best way to use Git
+;; Replaces command-line git with an interactive, visual interface
+;;
+;; MAIN COMMAND:
+;;   C-x g  - Open Magit status buffer (like 'git status' but interactive)
+;;
+;; IN MAGIT STATUS BUFFER:
+;;   s      - Stage file/hunk under cursor (git add)
+;;   u      - Unstage file/hunk (git reset)
+;;   c c    - Commit (opens editor for message, C-c C-c to finish)
+;;   P p    - Push to remote (git push)
+;;   F p    - Pull from remote (git pull)
+;;   b b    - Switch branches
+;;   b c    - Create new branch
+;;   l l    - View commit log
+;;   d d    - View diff of file under cursor
+;;   k      - Discard changes (careful!)
+;;   g      - Refresh status
+;;   TAB    - Expand/collapse section
+;;   q      - Quit magit buffer
+;;
+;; WORKFLOW EXAMPLE:
+;;   1. Make changes to files
+;;   2. Press C-x g to see status
+;;   3. Move cursor to changed file, press 's' to stage
+;;   4. Press 'c c' to commit, write message, C-c C-c to finish
+;;   5. Press 'P p' to push
+;;
+;; TIP: Magit is SO good that many developers use Emacs just for this!
+(use-package magit
+  :bind ("C-x g" . magit-status))
+
+;; Undo-tree: Visual undo/redo with branching history
+;; Normal undo is linear - this shows a tree of all your edits
+;;
+;; COMMANDS:
+;;   C-x u   - Open undo-tree visualizer (shows tree of changes)
+;;   C-/     - Undo (or C-_ or C-x u in text)
+;;   C-?     - Redo (or M-_)
+;;
+;; IN UNDO-TREE VISUALIZER:
+;;   p/n     - Move back/forward in history (up/down tree)
+;;   b/f     - Switch branches (left/right in tree)
+;;   t       - Toggle timestamps
+;;   q       - Quit visualizer
+;;
+;; WHAT IT SOLVES:
+;;   Normal undo: You make changes → undo → undo → make new change → CAN'T get back to undone work!
+;;   Undo-tree: ALL changes are saved in a tree - you can navigate to ANY previous state
+;;
+;; EXAMPLE:
+;;   1. Write "hello"
+;;   2. Undo → write "goodbye"
+;;   3. Undo tree lets you get back to "hello" even though you made new changes!
+;;
+;; TIP: C-x u to see the visual tree when you're lost in undo history
+(use-package undo-tree
+  :config
+  (global-undo-tree-mode))
+
+;; Company: Code completion (shows autocomplete suggestions as you type)
+;; Works with LSP to provide intelligent completions
+;;
+;; USAGE (when enabled):
+;;   Just start typing → popup shows completions after a brief delay
+;;   M-n / M-p      - Navigate down/up in completion list
+;;   TAB or RET     - Accept selected completion
+;;   C-g            - Cancel completion
+;;   M-<digit>      - Quickly select completion by number (M-1, M-2, etc.)
+;;
+;; CURRENTLY: Disabled globally (enable by uncommenting line below)
+;;
+;; WHY DISABLED:
+;;   LSP already provides completions - Company just makes the popup nicer
+;;   You can enable if you want prettier completion popups
+;;
+;; TO ENABLE:
+;;   Uncomment the line: (add-hook 'after-init-hook 'global-company-mode)
+;;   Restart Emacs → you'll get popup completions everywhere
+;;
+;; TIP: Try it both ways - some prefer LSP's default completion, some prefer Company's popups
+(use-package company
+  :config
+  ;; Uncomment to enable globally for prettier completion popups
+  ;; (add-hook 'after-init-hook 'global-company-mode)
+  )
+
+;; Company-web: HTML/CSS/JavaScript completion for Company mode
+;; Provides autocomplete for web technologies (HTML tags, CSS properties, etc.)
+;;
+;; USAGE:
+;;   Automatically works when Company mode is enabled in web-related files
+;;   Type '<div' → see HTML tag completions
+;;   Type 'background-' → see CSS property completions
+;;
+;; REQUIRES: Company mode to be enabled (see above)
+;;
+;; NOTE: Works automatically, no commands to learn
+(use-package company-web)
+
+;; Flyspell: Spell checking
+(use-package flyspell
+  :hook (prog-mode . flyspell-prog-mode))
+
+;; LSP Mode: Language Server Protocol
+(use-package lsp-mode
+  :commands lsp
+  :hook ((python-mode . lsp)
+         (rust-mode . lsp)
+         (typescript-mode . lsp)
+         (svelte-mode . lsp)
+         (sh-mode . lsp))
+  :config
+  (setq lsp-enable-snippet nil))  ; Disable snippets
+
+(use-package lsp-ui
+  :commands lsp-ui-mode)
+
+;; Language modes
+(use-package markdown-mode
+  :mode "\\.md\\'")
+
+(use-package rust-mode
+  :mode "\\.rs\\'"
+  :hook (rust-mode . display-line-numbers-mode))
+
+(use-package cargo
+  :hook (rust-mode . cargo-minor-mode))
+
+(use-package typescript-mode
+  :mode "\\.ts\\'"
+  :hook (typescript-mode . display-line-numbers-mode))
+
+(use-package svelte-mode
+  :mode "\\.svelte\\'"
+  :hook (svelte-mode . display-line-numbers-mode))
+
+(use-package yaml-mode
+  :mode "\\.ya?ml\\'")
+
+(use-package json-mode
+  :mode "\\.json\\'")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; PROGRAMMING MODES
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -171,30 +352,16 @@
 (add-hook 'text-mode-hook 'turn-on-auto-fill)
 (add-hook 'shell-script-mode-hook 'turn-on-auto-fill)
 
-;; Spell checking in programming modes (comments/strings only)
-(require 'flyspell)
-(add-hook 'prog-mode-hook 'flyspell-prog-mode)
+;;; LSP Language Server Installation Instructions:
+;; rustup component add rust-analyzer
+;; npm install -g typescript-language-server typescript
+;; npm install -g svelte-language-server
+;; pip install python-lsp-server --break-system-packages
+;; npm install -g bash-language-server
+;; npm install -g shellcheck
 
 ;; Python
 (add-hook 'python-mode-hook 'hs-minor-mode)  ; Code folding
-(add-hook 'python-mode-hook 'flymake-mode)   ; On-the-fly syntax checking
-
-;; Rust
-(add-hook 'rust-mode-hook 'display-line-numbers-mode)
-;; Uncomment for LSP support:
-;; (add-hook 'rust-mode-hook 'lsp)
-
-;; TypeScript
-(add-to-list 'auto-mode-alist '("\\.ts\\'" . typescript-mode))
-(add-hook 'typescript-mode-hook 'display-line-numbers-mode)
-;; Uncomment for LSP support:
-;; (add-hook 'typescript-mode-hook 'lsp)
-
-;; Svelte
-(add-to-list 'auto-mode-alist '("\\.svelte\\'" . svelte-mode))
-(add-hook 'svelte-mode-hook 'display-line-numbers-mode)
-;; Uncomment for LSP support:
-;; (add-hook 'svelte-mode-hook 'lsp)
 
 ;; File type associations
 (add-to-list 'auto-mode-alist '("README\\'" . text-mode))
@@ -231,29 +398,11 @@
 (init-at-startup)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; AUTOCOMPLETE (Company Mode)
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; Uncomment to enable company-mode globally
-;; (require 'company)
-;; (add-hook 'after-init-hook 'global-company-mode)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; ENCRYPTION
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (require 'epa-file)
 (epa-file-enable)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; CALENDAR AND DIARY
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(setq calendar-mark-diary-entries-flag t)
-(setq calendar-mark-holidays-flag t)
-(setq calendar-today-marker 'calendar-today-face)
-(add-hook 'calendar-today-visible-hook 'calendar-mark-today)
-(add-hook 'list-diary-entries-hook 'sort-diary-entries t)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; FILESETS
@@ -405,18 +554,6 @@
                                   (shell-quote-argument buffer-file-name)))
            (message (concat "Saved as executable script: " buffer-file-name)))))
 
-;; Backup .TODO files to remote server
-;; Note: Customize server/path or remove if not needed
-(add-hook 'after-save-hook
-  #'(lambda ()
-      (let* ((thebuff (abbreviate-file-name (shell-quote-argument buffer-file-name)))
-             (bn (file-name-nondirectory thebuff)))
-        (when (string-match "^\\.TODO" bn)
-          (let* ((newfile (concat "dot-" (substring bn 1)))
-                 (bu (concat "xmidas@smaug:/backups/developers/sgb/" newfile))
-                 (bucmd (concat "scp " thebuff " " bu)))
-            (shell-command bucmd)
-            (message (concat "Backed up: " bucmd)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; COLOR THEME
@@ -451,20 +588,17 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(diff-switches "-u"))
+ '(diff-switches "-u")
+ '(package-selected-packages nil))
 
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(default ((t (:inherit nil :stipple nil :background "cornsilk" :foreground "black"
-                :inverse-video nil :box nil :strike-through nil :overline nil :underline nil
-                :slant normal :weight bold :height 92 :width normal :foundry "unknown"
-                :family "DejaVu Sans Mono"))))
+ '(default ((t (:inherit nil :stipple nil :background "cornsilk" :foreground "black" :inverse-video nil :box nil :strike-through nil :overline nil :underline nil :slant normal :weight bold :height 92 :width normal :foundry "unknown" :family "DejaVu Sans Mono"))))
  '(calendar-today ((t (:weight ultra-bold))))
- '(diary ((((min-colors 88) (class color) (background light))
-          (:background "black" :foreground "white"))))
+ '(diary ((((min-colors 88) (class color) (background light)) (:background "black" :foreground "white"))))
  '(flymake-error ((t (:inherit error :inverse-video t))))
  '(flymake-warning ((t (:inherit warning :inverse-video t)))))
 

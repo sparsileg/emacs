@@ -1,22 +1,20 @@
-# Ignore compiled and cache files
-auto-save-list/
-backup/
-elpa/
-eln-cache/
+# State and cache files
 *.elc
 *.eln
-
-# Ignore transient state
+eln-cache/
+elpa/
+auto-save-list/
+backup/
 recentf
 places
-bookmarks
-network-security.data
-transient/
 history
 ido.last
-filesets-cache.el
+lsp-*
+.lsp-*
+projectile*
+transient/
 eshell/
+filesets-cache.el
 
-# Keep lisp/ directory for custom configs
-!lisp/
-EOF
+# Undo-tree backup files
+*~undo-tree~
