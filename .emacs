@@ -1,168 +1,271 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; .emacs
-;;
+;; ~/.emacs - Emacs Configuration
+;; Organized for clarity and maintainability
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(add-to-list 'load-path "~/.emacs.d/lisp/")
+;; PLATFORM-SPECIFIC SETTINGS
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; position at startup
-(setq initial-frame-alist '((width . 120) (height . 60 ) (top . 2) (left . 650)))
+;; Windows configuration
+(when (eq system-type 'windows-nt)
+  (set-face-attribute 'default nil :font "Consolas-11")
+  (setenv "HOME" "C:/Users/stanb/OneDrive/stan/")
+  (setq default-directory "C:/Users/stanb/OneDrive/stan/"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; uniquify allows to have for instance "Makefile|proj" and
-; "Makefile|otherProj" as buffer name instead of "Makefile" and
-; "Makefile<2>", and it is activated only if there are multiple files
-; with the same name!
+;; PACKAGE MANAGEMENT
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; uniquify!
+(require 'package)
+(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
+(package-initialize)
+
+;; Install packages automatically if missing
+(setq package-selected-packages
+      '(markdown-mode
+        rust-mode
+        typescript-mode
+        svelte-mode
+        yaml-mode
+        company              ; autocomplete
+        company-web          ; web completion
+        flyspell             ; spell checking
+        lsp-mode             ; Language Server Protocol
+        lsp-ui               ; LSP UI enhancements
+        ))
+
+;; Uncomment to auto-install missing packages on startup
+;; (unless package-archive-contents (package-refresh-contents))
+;; (package-install-selected-packages)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; PERFORMANCE OPTIMIZATION
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(setq gc-cons-threshold 100000000)        ; 100 MB before GC
+(setq read-process-output-max (* 1024 1024)) ; 1 MB for subprocess output
+(setq large-file-warning-threshold nil)   ; Don't warn about large files
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; UI/UX SETTINGS
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Window geometry
+(setq initial-frame-alist '((width . 120) (height . 60) (top . 2) (left . 650)))
+
+;; Basic UI
+(setq inhibit-startup-message t)          ; Skip startup screen
+(column-number-mode 1)                    ; Show column numbers
+(size-indication-mode t)                  ; Show file size
+(display-time-mode t)                     ; Show time in modeline
+(show-paren-mode t)                       ; Highlight matching parens
+(setq show-paren-style 'expression)       ; Highlight entire expression
+(global-hl-line-mode 1)                   ; Highlight current line
+(global-auto-revert-mode 1)               ; Auto-reload changed files
+(setq auto-revert-verbose nil)            ; Don't announce reverts
+
+;; Line numbers (modern approach)
+(global-display-line-numbers-mode t)
+(setq display-line-numbers-type 'relative) ; Relative line numbers
+(setq display-line-numbers-grow-only nil)
+
+;; Frame title shows buffer name and hostname
+(setq frame-title-format (concat "%b - emacs@" (system-name)))
+
+;; Enable narrow/wide region
+(put 'narrow-to-region 'disabled nil)
+(put 'downcase-region 'disabled nil)
+(put 'scroll-left 'disabled nil)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; EDITING BEHAVIOR
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Indentation
+(setq-default indent-tabs-mode nil)       ; Use spaces, not tabs
+(setq-default tab-width 4)                ; Tab width = 4 spaces
+(setq fill-column 75)                     ; Default fill column
+
+;; Selection and marking
+(setq transient-mark-mode t)              ; Visual feedback on selections
+
+;; Newlines
+(setq require-final-newline 'query)       ; Ask before adding final newline
+
+;; Scrolling
+(setq mouse-wheel-scroll-amount '(1 ((shift) . 1))) ; One line at a time
+(setq mouse-wheel-progressive-speed nil)  ; Don't accelerate
+(setq mouse-wheel-follow-mouse 't)        ; Scroll window under mouse
+(setq scroll-step 1)                      ; Smooth scrolling
+(setq scroll-margin 5)                    ; Keep cursor away from edges
+(setq scroll-conservatively 101)          ; Prevent jumps
+(setq scroll-preserve-screen-position t)  ; Maintain position when paging
+(setq line-move-visual nil)               ; Move by logical lines
+
+;; Completion
+(setq completion-auto-help 'lazy)         ; Show completions after second TAB
+(icomplete-mode t)                        ; Enhanced minibuffer completion
+
+;; Auto-delete trailing whitespace on save
+(add-hook 'before-save-hook (lambda () (delete-trailing-whitespace)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; BACKUP AND HISTORY
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(setq backup-directory-alist '(("" . "~/.emacs.d/backup")))
+(setq backup-by-copying-when-mismatch t)  ; Preserve file ownership
+(savehist-mode 1)                         ; Save minibuffer history
+(setq bookmark-save-flag 1)               ; Save bookmarks on change
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; BUFFER MANAGEMENT
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Uniquify: Better buffer names for duplicate filenames
 (require 'uniquify)
 (setq uniquify-buffer-name-style 'reverse)
 (setq uniquify-separator "|")
 (setq uniquify-after-kill-buffer-p t)
 (setq uniquify-ignore-buffers-re "^\\*")
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(savehist-mode 1)
-;(require 'undo-tree)
-
-;; this is the old way of doing things
-;(global-hl-line-mode 1)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Large file handling - make read-only and disable undo
 (defun tj-find-file-check-make-large-file-read-only-hook ()
-  "If a file is over a given size, make the buffer read only."
+  "If a file is over 1MB, make buffer read-only and disable undo."
   (when (> (buffer-size) (* 1024 1024))
     (setq buffer-read-only t)
     (buffer-disable-undo)
-    (message "Buffer is set to read-only because it is large. Undo also disabled.")))
+    (message "Large file: buffer is read-only, undo disabled.")))
 
 (add-hook 'find-file-hooks 'tj-find-file-check-make-large-file-read-only-hook)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; without annoying startup msg
-(setq inhibit-startup-message t)
+;; IDO MODE (Interactive Do)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; enable visual feedback on selections
-(setq transient-mark-mode t)
+(require 'ido)
+(ido-mode t)
+(setq ido-enable-flex-matching t)         ; Fuzzy matching
+(setq ido-create-new-buffer 'always)      ; Don't confirm new buffers
 
-;; default to better frame titles
-(setq frame-title-format
-      (concat  "%b - emacs@" (system-name)))
+(load "ido-other-window" 'noerror)
+(when (load "ido-yes-or-no" 'noerror)
+  (ido-yes-or-no-mode 1))
 
-;; default to unified diffs
-(setq diff-switches "-u")
+(defadvice ido-complete-space (around handle-require-match activate)
+  "If require-match is nil, always insert space."
+  (if (bound-and-true-p require-match)
+      (ido-complete)
+    (insert " ")))
 
-;; ask if end a file with a newline
-(setq require-final-newline 'query)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; PROGRAMMING MODES
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; move by physical line (separated by \n), rather than visual line
-(setq line-move-visual nil)
+;; Syntax highlighting
+(global-font-lock-mode t)
 
-;; This tells emacs to show the column number in each modeline.
-(column-number-mode 1)
+;; Auto-fill in text/code modes
+(add-hook 'emacs-lisp-mode-hook 'turn-on-auto-fill)
+(add-hook 'text-mode-hook 'turn-on-auto-fill)
+(add-hook 'shell-script-mode-hook 'turn-on-auto-fill)
 
-;; save desktop periodically and load the last desktop up at start
-;; confirm exiting emacs
-;; (desktop-save-mode 1)
-;; (setq confirm-kill-emacs 'y-or-n-p)
+;; Spell checking in programming modes (comments/strings only)
+(require 'flyspell)
+(add-hook 'prog-mode-hook 'flyspell-prog-mode)
 
-(setq mouse-wheel-scroll-amount '(1 ((shift) . 1))) ; one line at a time
-(setq mouse-wheel-progressive-speed nil) ; don't accelerate scrolling
-(setq mouse-wheel-follow-mouse 't)       ; scroll window under mouse
-(setq scroll-step 1)                     ; one line at a time via cursor
-(setq scroll-margin 5)                   ; keep cursor away from window edges
-(setq scroll-conservatively 101)         ; prevent sudden jumps while scrolling
-(setq scroll-preserve-screen-position t) ; maintain screen position when paging
+;; Python
+(add-hook 'python-mode-hook 'hs-minor-mode)  ; Code folding
+(add-hook 'python-mode-hook 'flymake-mode)   ; On-the-fly syntax checking
 
-;;; from snarged.org/why_i_dont_run_shells_inside_emacs
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(backup-directory-alist '(("" . "~/.emacs.d/backup")))
- '(bookmark-save-flag 1)
- '(calendar-mark-diary-entries-flag t)
- '(calendar-mark-holidays-flag t)
- '(calendar-today-marker 'calendar-today-face)
- '(calendar-today-visible-hook '(calendar-mark-today))
- '(column-number-mode t)
- '(comint-completion-addsuffix t)
- '(comint-completion-autolist t)
- '(comint-input-ignoredups t)
- '(comint-scroll-show-maximum-output t)
- '(comint-scroll-to-bottom-on-input t)
- '(comint-scroll-to-bottom-on-output t)
- '(completion-auto-help 'lazy)
- '(display-time-mode t)
- '(fill-column 75)
- '(icomplete-mode t)
- '(ido-mode t nil (ido))
- '(indent-tabs-mode nil)
- '(package-selected-packages
-   '(bm minimap undo-tree json-reformat company company-web markdown-mode markdown-preview-mode rust-mode
-             svelte-mode typescript-mode yaml-mode))
- '(scroll-bar ((t (:background "Dark slate gray"))))
- '(setq indent-tabs-mode)
- '(setq-default show-trailing-whitespace t)
- '(show-paren-mode t)
- '(show-paren-style 'expression)
- '(size-indication-mode t)
- '(tab-width 4)
- '(today-visible-calendar-hook '(calendar-mark-today)))
+;; Rust
+(add-hook 'rust-mode-hook 'display-line-numbers-mode)
+;; Uncomment for LSP support:
+;; (add-hook 'rust-mode-hook 'lsp)
 
-;;; install all package in the package-selected-packages variable
-;;; M-x package-install-selected-packages
+;; TypeScript
+(add-to-list 'auto-mode-alist '("\\.ts\\'" . typescript-mode))
+(add-hook 'typescript-mode-hook 'display-line-numbers-mode)
+;; Uncomment for LSP support:
+;; (add-hook 'typescript-mode-hook 'lsp)
 
-; '(minimap-always-recenter t)
-; '(minimap-mode t)
-; '(minimap-window-location (quote right))
+;; Svelte
+(add-to-list 'auto-mode-alist '("\\.svelte\\'" . svelte-mode))
+(add-hook 'svelte-mode-hook 'display-line-numbers-mode)
+;; Uncomment for LSP support:
+;; (add-hook 'svelte-mode-hook 'lsp)
 
-;;; from snarged.org/why_i_dont_run_shells_inside_emacs
+;; File type associations
+(add-to-list 'auto-mode-alist '("README\\'" . text-mode))
+(add-to-list 'auto-mode-alist '("readme\\'" . text-mode))
 
+;; Handle compressed files
+(auto-compression-mode t)
 
-;;; completion-auto-help values:
-;;;     nil: never show completion buffer
-;;;    lazy: show completion buffer after second <TAB>
-;;;       t: display completion buffer whenever completion is requested but cannot be done
-;;;
-;;; use C-h v to see values of variables
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; SHELL AND TERMINAL
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; interpret and use ansi color codes in shell output windows
+;; ANSI colors in shell output
 (ansi-color-for-comint-mode-on)
 
-; make completion buffers disappear after 3 seconds.
+;; Shell completion settings
+(setq comint-completion-addsuffix t)
+(setq comint-completion-autolist t)
+(setq comint-input-ignoredups t)
+(setq comint-scroll-show-maximum-output t)
+(setq comint-scroll-to-bottom-on-input t)
+(setq comint-scroll-to-bottom-on-output t)
+
+;; Auto-hide completion buffers after 3 seconds
 (add-hook 'completion-setup-hook
   (lambda () (run-at-time 3 nil
     (lambda () (delete-windows-on "*Completions*")))))
 
-;; line numbers on left
-(global-display-line-numbers-mode t)
-(setq display-line-numbers-type 'relative)
-(setq display-line-numbers-grow-only nil)
+;; Start shell on startup
+(shell "shell-1")
+(defun init-at-startup()
+  (execute-kbd-macro
+   [?\C-x ?b ?s ?h ?e ?l ?l ?- ?1 return ?\C-x ?1]))
+(init-at-startup)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; AUTOCOMPLETE (Company Mode)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; displays time in modeline
-(display-time)
+;; Uncomment to enable company-mode globally
+;; (require 'company)
+;; (add-hook 'after-init-hook 'global-company-mode)
 
-;; inserts a horizontal line separator
-(fset 'hline
-   "\C-a#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-#")
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; ENCRYPTION
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun cls ()
-  "Clears a screen - typically used in a shell buffer"
-  (interactive)
-  (erase-buffer)
-  )
+(require 'epa-file)
+(epa-file-enable)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; CALENDAR AND DIARY
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; inserts the python __future__ import options
-(fset 'future_import
-   "\C-afrom __future__ import print_function, division, absolute_import, unicode_literals")
+(setq calendar-mark-diary-entries-flag t)
+(setq calendar-mark-holidays-flag t)
+(setq calendar-today-marker 'calendar-today-face)
+(add-hook 'calendar-today-visible-hook 'calendar-mark-today)
+(add-hook 'list-diary-entries-hook 'sort-diary-entries t)
 
-;;; **********************************************************************
-;;; rebind keys
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; FILESETS
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(filesets-init)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; KEY BINDINGS
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Function keys
 (global-set-key [f1] 'toggle-selective-display)
 (global-set-key [f2] 'increment-selective-display)
 (global-set-key [f3] 'hs-hide-all-comments)
@@ -175,137 +278,25 @@
 (global-set-key [f11] 'hline)
 (global-set-key [f12] 'undo)
 
+;; Custom bindings
 (global-set-key (kbd "M-g") 'goto-line)
-
-;; ;; Enable position saving through shortcuts.
-;; ;; Save current position with  Ctrl-x /
-(global-set-key (kbd "C-x /") '(lambda () (interactive) (point-to-register ?1)))
-
-;; ;; Move to saved position with C-x j
-(global-set-key (kbd "C-x j") '(lambda () (interactive) (jump-to-register-here ?1)))
-
-;;; bind to C-c r
 (global-set-key (kbd "C-c r") 'rename-file-and-buffer)
 
-;;; **********************************************************************
-
-;;; syntax highlighting
-;;; toggle: M-x global-font-lock-mode
-(global-font-lock-mode t)
-
-(defun jump-to-register-other (reg)
-  (other-window 1)
-  (jump-to-register reg))
-
-(defun jump-to-register-here (reg)
-  (jump-to-register reg))
-
-;;; set "cipher-algo AES256" in .gnupg/gpg.conf to set default (rather than 3DES)
-(require 'epa-file)
-(epa-file-enable)
-
-;(require 'remember)
-;(setq remember-annotation-functions `(org-remember-annotation))
-;(setq remember-handler-functions `(org-remember-handler))
-;(setq remember-mode-hook `org-remember-apply-template)
-
-; line numbering
-(require 'linum)
-
-;;; Turn on Auto Fill mode automatically in various modes
-(add-hook 'emacs-lisp-mode-hook 'turn-on-auto-fill)
-(add-hook 'ReST-mode-hook 'turn-on-auto-fill)
-(add-hook 'ReST-mode-hook 'refill-mode)
-(add-hook 'shell-script-mode-hook 'turn-on-auto-fill)
-(add-hook 'text-mode-hook 'turn-on-auto-fill)
+;; Position markers
+(global-set-key (kbd "C-x /") '(lambda () (interactive) (point-to-register ?1)))
+(global-set-key (kbd "C-x j") '(lambda () (interactive) (jump-to-register ?1)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; python script stuff
-(add-hook 'python-mode-hook 'hs-minor-mode)
-(add-hook 'python-mode-hook 'flymake-mode)
-
-(add-hook 'python-mode-hook
-		  (lambda ()
-			(linum-on)
-			))
-
-
-;; (when (load "flymake" t)
-;;   (defun flymake-pylint-init ()
-;;     (let* ((temp-file (flymake-init-create-temp-buffer-copy
-;;                        'flymake-create-temp-inplace))
-;;            (local-file (file-relative-name
-;;                         temp-file
-;;                         (file-name-directory buffer-file-name))))
-;;       (list "epylint" (list local-file))))
-
-;;   (add-to-list 'flymake-allowed-file-name-masks
-;;                '("\\.py\\'" flymake-pylint-init)))
-
-
-(set-face-foreground 'font-lock-comment-face "blue")
-
-
-
+;; CUSTOM FUNCTIONS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; shell script stuff
-(add-hook 'sh-mode-hook
-		  (lambda ()
-			(linum-on)
-			))
 
-;;; only for shell mode, suppress the "Active processes exist ... exit anyway?"
-;;; query. NOTE that this command must be included BEFORE the shell is
-;;; started automatically. don't know why
-;(add-hook 'shell-mode-hook
-;          (lambda ()
-;            (process-kill-without-query (get-buffer-process (current-buffer)))))
+(defun cls ()
+  "Clear shell buffer."
+  (interactive)
+  (erase-buffer))
 
-;;;
-(add-hook 'java-mode-hook
-		  (lambda ()
-			(linum-on)
-			))
-
-(add-hook 'emacs-lisp-mode-hook
-		  (lambda ()
-			(linum-on)
-			))
-
-(add-hook 'php-mode-hook
-		  (lambda ()
-			(linum-on)
-			))
-
-(add-to-list 'auto-mode-alist '("\\.svelte\\'" . svelte-mode))
-(add-hook 'svelte-mode-hook
-          (lambda ()
-            (display-line-numbers-mode 1)))
-
-(add-hook 'rust-mode-hook
-          (lambda ()
-            (display-line-numbers-mode 1)))
-(add-hook 'rust-mode-hook
-          (lambda ()
-            (display-line-numbers-mode 1)))
-
-(add-to-list 'auto-mode-alist '("\\.ts\\'" . typescript-mode))
-(add-hook 'typescript-mode-hook
-          (lambda ()
-            (display-line-numbers-mode 1)))
-
-;;(setq linum-format "%4d \u2502")
-
-;;; set modes for various types of files
-(setq auto-mode-alist (cons '("README" . text-mode) auto-mode-alist))
-(setq auto-mode-alist (cons '("readme" . text-mode) auto-mode-alist))
-
-;;; Handle .gz files. on by default, but "just to make sure"
-(auto-compression-mode t)
-
-;;; renames a file and buffer while it is being visited
 (defun rename-file-and-buffer ()
-  "Renames current buffer and file it is visiting."
+  "Rename current buffer and file it is visiting."
   (interactive)
   (let ((name (buffer-name))
         (filename (buffer-file-name)))
@@ -320,127 +311,25 @@
                (set-visited-file-name new-name)
                (set-buffer-modified-p nil)))))))
 
-;;; start shell automatically and rename it
-(shell "shell-1")
-(defun init-at-startup()
-  (execute-kbd-macro
-   [?\C-x ?b ?s ?h ?e ?l ?l ?- ?1 return ?\C-x ?1]))
-(init-at-startup)
-
-
-;;; delete trailing whitespace on save
-(add-hook 'before-save-hook (lambda () (delete-trailing-whitespace)))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; BETA TEST STUFF
-
-(put 'narrow-to-region 'disabled nil)   ; Enable region narrowing & widening.
-
-;;; Preserve the owner and group of the file you are editing (this is
-;;; especially important if you edit files as root).
-(setq backup-by-copying-when-mismatch t)
-
-;;; Make cut/copy/paste set/use the X CLIPBOARD in preference to the X
-;;; PRIMARY. Unbreaks cut and paste between Emacs and well-behaved
-;;; applications like Mozilla, KDE, and GNOME, but breaks cut and
-;;; paste between Emacs and old applications like terminals.
-(setq x-select-enable-clipboard t)
-
-(set-face-foreground 'highlight "black")
-(set-face-foreground 'secondary-selection "black")
-(set-face-foreground 'highlight "black")
-
-;; Here are some color preferences.
-(setq default-frame-alist
-      (append default-frame-alist
-              '((foreground-color . "black")
-                (background-color . "cornsilk")
-                (cursor-color . "blue"))))
-
-(set-face-foreground 'bold "yellow")
-(set-face-background 'bold "grey40")
-
-(set-face-foreground 'bold-italic "yellow green")
-(set-face-foreground 'italic "yellow3")
-
-(set-face-foreground 'region "white")
-(set-face-background 'region "blue")
-
-
-;;; M-x list-faces-display
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(default ((t (:inherit nil :stipple nil :background "cornsilk" :foreground "black" :inverse-video nil :box nil :strike-through nil :overline nil :underline nil :slant normal :weight bold :height 92 :width normal :foundry "unknown" :family "DejaVu Sans Mono"))))
- '(calendar-today ((t (:weight ultra-bold))))
- '(diary ((((min-colors 88) (class color) (background light)) (:background "black" :foreground "white"))))
- '(flymake-error ((t (:inherit error :inverse-video t))))
- '(flymake-warning ((t (:inherit warning :inverse-video t)))))
-
-;;; wrappers to enable
-;(require 'vc-svn17)
-;;;(setq vc-svn-diff-switches '("-x --ignore-eol-style" "-x -w"))
-;;;(setq vc-diff-switches '("--normal" "-bB"))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; from https://github.com/DarwinAwardWinner/dotemacs/blob/master/site-lisp/settings/ido-settings.el
-(require 'ido)
-(load "ido-other-window" 'noerror)
-(when (load "ido-yes-or-no" 'noerror)
-  (ido-yes-or-no-mode 1))
-
-(defadvice ido-complete-space (around handle-require-match activate)
-  "If require-match is nil, always insert space."
-  (if (bound-and-true-p require-match)
-      (ido-complete)
-    (insert " ")))
-
-(eval-after-load "mic-paren"
-  '(defadvice mic-paren-highlight (around disable-inside-ido activate)
-     "Disable mic-paren highlighting in ido"
-     (unless (ido-active)
-       ad-do-it)))
-
-(provide 'ido-settings)
-
-(setq ido-enable-flex-matching t)
-(setq ido-create-new-buffer 'always)
-
-;;; add a Filesets menu to  menu bar
-(filesets-init)
-
-;;;
-
-(put 'downcase-region 'disabled nil)
-
-;;; reload buffers automatically if they change
-(global-auto-revert-mode 1)
-(setq auto-revert-verbose nil)
-
-
-;;; Stefan Monnier <foo at acm.org>. It is the opposite of
-;;; fill-paragraph. Takes a multi-line paragraph and makes
-;;; it into a single line of text.
 (defun unfill-paragraph ()
+  "Convert multi-line paragraph to single line."
   (interactive)
   (let ((fill-column (point-max)))
     (fill-paragraph nil)))
 
+(defun refill-paragraph ()
+  "Unfill then refill paragraph."
+  (interactive)
+  (unfill-paragraph)
+  (fill-paragraph))
 
-;;; calendar and diary stuff
-;;;(diary)
-(add-hook 'list-diary-entries-hook 'sort-diary-entries t)
-
-;;; quick function folding
 (defun toggle-selective-display ()
+  "Toggle code folding."
   (interactive)
   (set-selective-display (if selective-display nil 1)))
 
-;;; increment folding function
 (defun increment-selective-display ()
+  "Increment folding level by 4 spaces."
   (interactive)
   (let ((column (if selective-display
                     (+ selective-display 4) 4)))
@@ -448,11 +337,8 @@
         (set-selective-display nil)
       (set-selective-display column))))
 
-;;; hide all comments
-;;; Hide all top level blocks, if they are comments, displaying only
-;;; the first line.
-
 (defun hs-hide-all-comments ()
+  "Hide all comment blocks."
   (interactive)
   (hs-life-goes-on
    (save-excursion
@@ -464,7 +350,6 @@
            (re (concat "\\(" hs-c-start-regexp "\\)")))
        (while (re-search-forward re (point-max) t)
          (if (match-beginning 1)
-             ;; found a comment, probably
              (let ((c-reg (hs-inside-comment-p)))
                (when (and c-reg (car c-reg))
                  (if (> (count-lines (car c-reg) (nth 1 c-reg)) 1)
@@ -475,127 +360,114 @@
    (beginning-of-line)
    (run-hooks 'hs-hide-hook)))
 
-;;; make all files with a shebang in them, executable when saved
-(add-hook
- 'after-save-hook
- #'(lambda ()
-     (and
-      (save-excursion
-        (save-restriction
-          (widen)
-          (goto-char (point-min))
-          (save-match-data
-            (looking-at "^#!"))))
-      (not (file-executable-p buffer-file-name))
-      (shell-command (concat "chmod a+x "
-                             (shell-quote-argument
-                              buffer-file-name)))
-      (message
-       (concat "Saves as script: " buffer-file-name)))))
+(defun jump-to-register-here (reg)
+  "Jump to register in current window."
+  (jump-to-register reg))
 
-
-;;; do a backup after a save on any file that begins with a .TODO
-(add-hook
- 'after-save-hook
- #'(lambda ()
-(and
- (setq thebuff (abbreviate-file-name (shell-quote-argument buffer-file-name)))
- (setq bn (file-name-nondirectory thebuff))
- (if (string-match "^\\.TODO" bn)
-     (and
-      (setq newfile (concat "dot-" (substring bn 1 (length bn))))
-      (setq bu (concat "xmidas@smaug:/backups/developers/sgb/" newfile))
-      (setq bucmd (concat "scp " thebuff " " bu))
-      (shell-command bucmd)
-      (message (concat "Executed : " bucmd)))))))
-
-;;; shortcut to reformatting a paragraph
-(defun refill-paragraph ()
-  (interactive)
-  (unfill-paragraph)
-  (fill-paragraph)
-  )
-
+(defun jump-to-register-other (reg)
+  "Jump to register in other window."
+  (other-window 1)
+  (jump-to-register reg))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; use pure emacs json reformatter
-
-;(require 'json-reformat)
-
-(put 'scroll-left 'disabled nil)
-
+;; KEYBOARD MACROS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; visible bookmarks
 
-;(require 'bm)
+;; Insert horizontal line
+(fset 'hline
+      "\C-a#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-#")
 
-;;(global-set-key (kbd "<C-f2>") 'bm-toggle)
-;;(global-set-key (kbd "<f2>") 'bm-next)
-;;(global-set-key (kbd "<S-f2>") 'bm-previous)
+;; Insert Python future imports
+(fset 'future_import
+      "\C-afrom __future__ import print_function, division, absolute_import, unicode_literals")
 
-;;; click on fringe to toggle bookmarks and use mouse wheel to move between
-;;; them
-;(global-set-key (kbd "<left-fringe> <mouse-5>") 'bm-next-mouse)
-;(global-set-key (kbd "<left-fringe> <mouse-4>") 'bm-previous-mouse)
-;(global-set-key (kbd "<left-fringe> <mouse-1>") 'bm-toggle-mouse)
-
-
-;;; make bookmarks persistent as default
-;(setq-default bm-buffer-persistence t)
-
-;;; load the repository from file on start up
-;(add-hook 'after-init-hook 'bm-repository-load)
-
-;;; restore bookmarks when on file find
-;(add-hook 'find-file-hook 'bm-buffer-restore)
-
-;;; save bookmark data on killing buffer
-;(add-hook 'kill-buffer-hook 'bm-buffer-save)
-
-;;; save repository to file on exit
-;(add-hook 'kill-emacs-hook '(lambda nil
-;                              (bm-buffer-save-all)
-;                              (bm-repository-save)))
-
-;;; cycle through bookmarks in ALL open buffers
-;(setq bm-cycle-all-buffers t)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; minimap mode stuff
-
-;(require 'minimap)
-
-;(setq minimap-major-modes '(prog-mode rst-mode text-mode Shell-script))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; MELPA package repository
-(require 'package)
-(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
-(package-initialize)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; performance tweaks
-(setq gc-cons-threshold 100000000) ;; 100 MB before GC
-(setq read-process-output-max (* 1024 1024)) ;; 1 MB
-(setq large-file-warning-threshold nil)
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(add-to-list 'load-path "~/.emacs.d/markdown-mode")
-(require 'markdown-mode)
-
-(require 'flyspell)
-(add-hook 'prog-mode-hook 'flyspell-prog-mode)  ; spell check comments/strings only
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; keyboard macros
-
-;; insert tooltips into element
+;; Insert tooltip attributes
 (fset 'tt
-   (kmacro-lambda-form [?c ?l ?a ?s ?s ?= ?\" ?t ?o ?o ?l ?t ?i ?p ?- ?h ?o ?s ?t ?\" ?  ?d ?a ?t ?a ?- ?t ?o ?o ?l ?t ?i ?p ?- ?k ?e ?y ?= ?\" ?\" ?\C-b] 0 "%d"))
-
+      (kmacro-lambda-form [?c ?l ?a ?s ?s ?= ?\" ?t ?o ?o ?l ?t ?i ?p ?- ?h ?o ?s ?t ?\"
+                           ?  ?d ?a ?t ?a ?- ?t ?o ?o ?l ?t ?i ?p ?- ?k ?e ?y ?= ?\" ?\" ?\C-b]
+                          0 "%d"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; AUTO-SAVE HOOKS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Make scripts executable on save
+(add-hook 'after-save-hook
+  #'(lambda ()
+      (and (save-excursion
+             (save-restriction
+               (widen)
+               (goto-char (point-min))
+               (save-match-data
+                 (looking-at "^#!"))))
+           (not (file-executable-p buffer-file-name))
+           (shell-command (concat "chmod a+x "
+                                  (shell-quote-argument buffer-file-name)))
+           (message (concat "Saved as executable script: " buffer-file-name)))))
+
+;; Backup .TODO files to remote server
+;; Note: Customize server/path or remove if not needed
+(add-hook 'after-save-hook
+  #'(lambda ()
+      (let* ((thebuff (abbreviate-file-name (shell-quote-argument buffer-file-name)))
+             (bn (file-name-nondirectory thebuff)))
+        (when (string-match "^\\.TODO" bn)
+          (let* ((newfile (concat "dot-" (substring bn 1)))
+                 (bu (concat "xmidas@smaug:/backups/developers/sgb/" newfile))
+                 (bucmd (concat "scp " thebuff " " bu)))
+            (shell-command bucmd)
+            (message (concat "Backed up: " bucmd)))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; COLOR THEME
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Clipboard integration
+(setq x-select-enable-clipboard t)
+
+;; Basic colors
+(setq default-frame-alist
+      (append default-frame-alist
+              '((foreground-color . "black")
+                (background-color . "cornsilk")
+                (cursor-color . "blue"))))
+
+(set-face-foreground 'font-lock-comment-face "blue")
+(set-face-foreground 'highlight "black")
+(set-face-foreground 'secondary-selection "black")
+(set-face-foreground 'bold "yellow")
+(set-face-background 'bold "grey40")
+(set-face-foreground 'bold-italic "yellow green")
+(set-face-foreground 'italic "yellow3")
+(set-face-foreground 'region "white")
+(set-face-background 'region "blue")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; CUSTOM-SET-VARIABLES (auto-generated)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(diff-switches "-u"))
+
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(default ((t (:inherit nil :stipple nil :background "cornsilk" :foreground "black"
+                :inverse-video nil :box nil :strike-through nil :overline nil :underline nil
+                :slant normal :weight bold :height 92 :width normal :foundry "unknown"
+                :family "DejaVu Sans Mono"))))
+ '(calendar-today ((t (:weight ultra-bold))))
+ '(diary ((((min-colors 88) (class color) (background light))
+          (:background "black" :foreground "white"))))
+ '(flymake-error ((t (:inherit error :inverse-video t))))
+ '(flymake-warning ((t (:inherit warning :inverse-video t)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; END OF CONFIGURATION
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
