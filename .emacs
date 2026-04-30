@@ -104,8 +104,13 @@
 ;; BACKUP AND HISTORY
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(setq backup-directory-alist '(("" . "~/.emacs.d/backup")))
+(setq backup-directory-alist '(("." . "~/.emacs.d/backup")))
+(setq backup-by-copying t)                ; Don't clobber symlinks
 (setq backup-by-copying-when-mismatch t)  ; Preserve file ownership
+(setq delete-old-versions t)              ; Delete excess backups
+(setq kept-new-versions 6)                ; Keep 6 newest versions
+(setq kept-old-versions 2)                ; Keep 2 oldest versions
+(setq version-control t)                  ; Use version numbers on backups
 (savehist-mode 1)                         ; Save minibuffer history
 (setq bookmark-save-flag 1)               ; Save bookmarks on change
 
@@ -148,6 +153,15 @@
   (if (bound-and-true-p require-match)
       (ido-complete)
     (insert " ")))
+
+;; Don't use IDO in shell/eshell buffers
+(add-hook 'shell-mode-hook
+          (lambda ()
+            (setq-local ido-mode nil)))
+
+(add-hook 'eshell-mode-hook
+          (lambda ()
+            (setq-local ido-mode nil)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; PACKAGES (using use-package)
@@ -281,7 +295,7 @@
 (use-package company
   :config
   ;; Uncomment to enable globally for prettier completion popups
-  ;; (add-hook 'after-init-hook 'global-company-mode)
+  (add-hook 'after-init-hook 'global-company-mode)
   )
 
 ;; Company-web: HTML/CSS/JavaScript completion for Company mode
@@ -359,6 +373,12 @@
 ;; pip install python-lsp-server --break-system-packages
 ;; npm install -g bash-language-server
 ;; npm install -g shellcheck
+
+;; Add NVM's current node version to PATH
+(let ((nvm-current "/home/stan/.nvm/versions/node/v20.20.2/bin"))
+  (when (file-directory-p nvm-current)
+    (setenv "PATH" (concat nvm-current ":" (getenv "PATH")))
+    (add-to-list 'exec-path nvm-current)))
 
 ;; Python
 (add-hook 'python-mode-hook 'hs-minor-mode)  ; Code folding
