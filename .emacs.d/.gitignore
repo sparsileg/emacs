@@ -17,6 +17,4 @@ eshell/
 filesets-cache.el
 projects
 tramp
-
-# Undo-tree backup files
-*~undo-tree~
+undo-tree/

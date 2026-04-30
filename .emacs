@@ -42,7 +42,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Window geometry
-(setq initial-frame-alist '((width . 130) (height . 115) (top . 2) (right . 2)))
+(setq initial-frame-alist '((width . 120) (height . 100) (top . 5) (right . 5)))
 
 ;; Basic UI
 (setq inhibit-startup-message t)          ; Skip startup screen
@@ -100,6 +100,36 @@
 ;; Auto-delete trailing whitespace on save
 (add-hook 'before-save-hook (lambda () (delete-trailing-whitespace)))
 
+;; Avy - jump to any location on your screen with 2 letters
+;; Type C-c j then two characters → jump anywhere on screen
+;; Way faster than searching or scrolling
+
+(use-package avy
+  :bind (("C-'" . avy-goto-line)
+         ("C-c j" . avy-goto-char-2))
+  :config
+  ;; Customize avy appearance
+  (set-face-attribute 'avy-lead-face nil
+                      :foreground "#1a1a24"      ; Dark background color
+                      :background "#e8a75a"      ; Bright orange (like your region)
+                      :weight 'bold)
+
+  (set-face-attribute 'avy-lead-face-0 nil
+                      :foreground "#1a1a24"
+                      :background "#61afef"      ; Bright blue
+                      :weight 'bold)
+
+  (set-face-attribute 'avy-lead-face-1 nil
+                      :foreground "#1a1a24"
+                      :background "#c678dd"      ; Purple
+                      :weight 'bold)
+
+  (set-face-attribute 'avy-lead-face-2 nil
+                      :foreground "#1a1a24"
+                      :background "#98c379"      ; Green
+                      :weight 'bold))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; BACKUP AND HISTORY
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -144,6 +174,17 @@
 (setq ido-enable-flex-matching t)         ; Fuzzy matching
 (setq ido-create-new-buffer 'always)      ; Don't confirm new buffers
 
+;; Disable IDO completion in shell buffers - use plain completion instead
+(defun disable-ido-in-shell ()
+  "Turn off IDO completion in shell/comint buffers."
+  (setq-local ido-everywhere nil)
+  (setq-local ido-enable-flex-matching nil)
+  (setq-local completing-read-function 'completing-read-default))
+
+(add-hook 'shell-mode-hook 'disable-ido-in-shell)
+(add-hook 'eshell-mode-hook 'disable-ido-in-shell)
+(add-hook 'comint-mode-hook 'disable-ido-in-shell)
+
 (load "ido-other-window" 'noerror)
 (when (load "ido-yes-or-no" 'noerror)
   (ido-yes-or-no-mode 1))
@@ -153,15 +194,6 @@
   (if (bound-and-true-p require-match)
       (ido-complete)
     (insert " ")))
-
-;; Don't use IDO in shell/eshell buffers
-(add-hook 'shell-mode-hook
-          (lambda ()
-            (setq-local ido-mode nil)))
-
-(add-hook 'eshell-mode-hook
-          (lambda ()
-            (setq-local ido-mode nil)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; PACKAGES (using use-package)
@@ -269,7 +301,9 @@
 ;; TIP: C-x u to see the visual tree when you're lost in undo history
 (use-package undo-tree
   :config
-  (global-undo-tree-mode))
+  (global-undo-tree-mode)
+  ;; Save undo history to ~/.emacs.d/undo-tree/ instead of project directories
+  (setq undo-tree-history-directory-alist '(("." . "~/.emacs.d/undo-tree/"))))
 
 ;; Company: Code completion (shows autocomplete suggestions as you type)
 ;; Works with LSP to provide intelligent completions
@@ -297,6 +331,7 @@
   ;; Uncomment to enable globally for prettier completion popups
   (add-hook 'after-init-hook 'global-company-mode)
   )
+
 
 ;; Company-web: HTML/CSS/JavaScript completion for Company mode
 ;; Provides autocomplete for web technologies (HTML tags, CSS properties, etc.)
@@ -579,25 +614,36 @@
 ;; COLOR THEME
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun cycle-my-themes ()
+  "Cycle between cornsilk, midnight-silk, and modus-vivendi-deuteranopia themes."
+  (interactive)
+  (cond
+   ((member 'cornsilk custom-enabled-themes)
+    (disable-theme 'cornsilk)
+    (load-theme 'midnight-silk t)
+    (message "Switched to midnight-silk (dark cornsilk)"))
+   ((member 'midnight-silk custom-enabled-themes)
+    (disable-theme 'midnight-silk)
+    (load-theme 'modus-vivendi-deuteranopia t)
+    (message "Switched to modus-vivendi-deuteranopia"))
+   (t
+    (mapc #'disable-theme custom-enabled-themes)
+    (load-theme 'cornsilk t)
+    (message "Switched to cornsilk (light)"))))
+
+(global-set-key (kbd "C-c t") 'cycle-my-themes)
+
+
+(add-to-list 'custom-theme-load-path "~/.emacs.d/themes/")
+(load-theme 'midnight-silk t)
+
+
 ;; Clipboard integration
 (setq x-select-enable-clipboard t)
 
-;; Basic colors
-(setq default-frame-alist
-      (append default-frame-alist
-              '((foreground-color . "black")
-                (background-color . "cornsilk")
-                (cursor-color . "blue"))))
+(add-to-list 'custom-theme-load-path "~/.emacs.d/themes/")
 
-(set-face-foreground 'font-lock-comment-face "blue")
-(set-face-foreground 'highlight "black")
-(set-face-foreground 'secondary-selection "black")
-(set-face-foreground 'bold "yellow")
-(set-face-background 'bold "grey40")
-(set-face-foreground 'bold-italic "yellow green")
-(set-face-foreground 'italic "yellow3")
-(set-face-foreground 'region "white")
-(set-face-background 'region "blue")
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CUSTOM-SET-VARIABLES (auto-generated)
@@ -608,20 +654,27 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(custom-safe-themes
+   '("b05ec53e77a84979bd32c001c632e66ab24dc055908d7fe052f8628bfdbe4ad9"
+     "04845a52986e2b78c4cb47abda3d1339c5024a66fee86447410f34010ef8d8b9"
+     "92b1d6e72b97bd74b5ddab60df19bb99e93a196c6e4575e6ef5c0319a30f11f5"
+     "49af87a7ea1fe48b52a25fbf77dbeaecc9a2c906e0382e8f15e9e5b54055bba3"
+     "1c5a8309b824269bb1e4b0008d7b16d488a3c10dc512303ce60713a2a4a7132f"
+     "905a3da98fafb02a446b434697ad13a0478d27f8e6f65c507c2d058eaf104cf9"
+     "07783027a35efa8215d4a043137072a98a67d6a924c5144814e2abcf11795175"
+     "aad56641f43f151b4225771a4032dc890c044891cdcaf0d477029e26585ead6e"
+     "b759ae60ce566580bbe90446e7fbeffdb103b3fcd43be369da1b3b68e1f2b267"
+     "2cf8fe6f700bd3cc5cf6add20dac9c406364119da6d4417e52cc7ec4803e998b"
+     default))
  '(diff-switches "-u")
  '(package-selected-packages nil))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; END OF CONFIGURATION
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(default ((t (:inherit nil :stipple nil :background "cornsilk" :foreground "black" :inverse-video nil :box nil :strike-through nil :overline nil :underline nil :slant normal :weight bold :height 92 :width normal :foundry "unknown" :family "DejaVu Sans Mono"))))
- '(calendar-today ((t (:weight ultra-bold))))
- '(diary ((((min-colors 88) (class color) (background light)) (:background "black" :foreground "white"))))
- '(flymake-error ((t (:inherit error :inverse-video t))))
- '(flymake-warning ((t (:inherit warning :inverse-video t)))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; END OF CONFIGURATION
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ )
