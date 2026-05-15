@@ -1,0 +1,13 @@
+--recurse=yes
+
+--exclude=.git
+--exclude=node_modules
+--exclude=.svelte-kit
+--exclude=target
+--exclude=dist
+--exclude=build
+
+--languages=Rust,TypeScript,JavaScript
+
+--extras=+q
+--fields=+niazS

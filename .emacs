@@ -243,6 +243,9 @@
   :bind-keymap
   ("C-c p" . projectile-command-map))
 
+(setq projectile-tags-command "ctags -e -R -f \"%s\"")
+(setq projectile-tags-file-name "TAGS")
+
 ;; Magit: Professional Git interface - the best way to use Git
 ;; Replaces command-line git with an interactive, visual interface
 ;;
