@@ -27,7 +27,7 @@
   (package-install 'use-package))
 
 (require 'use-package)
-(setq use-package-always-ensure t)  ; Auto-install packages if missing
+(setq use-package-always-ensure t)        ; Auto-install packages if missing
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; PERFORMANCE OPTIMIZATION
@@ -54,6 +54,7 @@
 (global-hl-line-mode 1)                   ; Highlight current line
 (global-auto-revert-mode 1)               ; Auto-reload changed files
 (setq auto-revert-verbose nil)            ; Don't announce reverts
+(save-place-mode 1)                       ; Remember cursor position in files
 
 ;; Line numbers (modern approach)
 (global-display-line-numbers-mode t)
@@ -62,6 +63,9 @@
 
 ;; Frame title shows buffer name and hostname
 (setq frame-title-format (concat "%b - emacs@" (system-name)))
+
+;; Clipboard integration
+(setq x-select-enable-clipboard t)
 
 ;; Enable narrow/wide region
 (put 'narrow-to-region 'disabled nil)
@@ -99,36 +103,6 @@
 
 ;; Auto-delete trailing whitespace on save
 (add-hook 'before-save-hook (lambda () (delete-trailing-whitespace)))
-
-;; Avy - jump to any location on your screen with 2 letters
-;; Type C-c j then two characters → jump anywhere on screen
-;; Way faster than searching or scrolling
-
-(use-package avy
-  :bind (("C-'" . avy-goto-line)
-         ("C-c j" . avy-goto-char-2))
-  :config
-  ;; Customize avy appearance
-  (set-face-attribute 'avy-lead-face nil
-                      :foreground "#1a1a24"      ; Dark background color
-                      :background "#e8a75a"      ; Bright orange (like your region)
-                      :weight 'bold)
-
-  (set-face-attribute 'avy-lead-face-0 nil
-                      :foreground "#1a1a24"
-                      :background "#61afef"      ; Bright blue
-                      :weight 'bold)
-
-  (set-face-attribute 'avy-lead-face-1 nil
-                      :foreground "#1a1a24"
-                      :background "#c678dd"      ; Purple
-                      :weight 'bold)
-
-  (set-face-attribute 'avy-lead-face-2 nil
-                      :foreground "#1a1a24"
-                      :background "#98c379"      ; Green
-                      :weight 'bold))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; BACKUP AND HISTORY
@@ -203,9 +177,9 @@
 ;; Shows a popup with all possible completions when you pause mid-command
 ;;
 ;; USAGE:
-;;   Press C-x and wait a moment → see all C-x ... commands
-;;   Press C-c and wait → see all C-c ... commands
-;;   Press C-c p and wait → see all Projectile commands
+;;   Press C-x and wait a moment   see all C-x ... commands
+;;   Press C-c and wait   see all C-c ... commands
+;;   Press C-c p and wait   see all Projectile commands
 ;;
 ;; EXAMPLE:
 ;;   You remember the command starts with C-x but forget the rest?
@@ -215,6 +189,41 @@
 (use-package which-key
   :config
   (which-key-mode))
+
+;; Avy: Jump to any visible location with 2 keystrokes
+;; Like what3words for your screen - every location gets a 1-2 letter code
+;;
+;; COMMANDS:
+;;   C-'     - Jump to any visible LINE (press key shown next to line)
+;;   C-c j   - Jump to any 2-character combo visible on screen
+;;
+;; HOW C-c j WORKS:
+;;   1. Press C-c j
+;;   2. Type 2 characters of where you want to go (e.g. "fu" for "function")
+;;   3. Emacs labels all matches with letters
+;;   4. Press the label letter to jump there
+;;
+;; TIP: Much faster than searching or using arrow keys for navigation!
+(use-package avy
+  :bind (("C-'" . avy-goto-line)
+         ("C-c j" . avy-goto-char-2))
+  :config
+  (set-face-attribute 'avy-lead-face nil
+                      :foreground "#1a1a24"
+                      :background "#e8a75a"      ; Orange label
+                      :weight 'bold)
+  (set-face-attribute 'avy-lead-face-0 nil
+                      :foreground "#1a1a24"
+                      :background "#61afef"      ; Blue label
+                      :weight 'bold)
+  (set-face-attribute 'avy-lead-face-1 nil
+                      :foreground "#1a1a24"
+                      :background "#c678dd"      ; Purple label
+                      :weight 'bold)
+  (set-face-attribute 'avy-lead-face-2 nil
+                      :foreground "#1a1a24"
+                      :background "#98c379"      ; Green label
+                      :weight 'bold))
 
 ;; Projectile: Project management and navigation
 ;; Automatically detects projects (git repos, Cargo.toml, package.json, etc.)
@@ -231,20 +240,18 @@
 ;;   C-c p R   - Replace text across entire project
 ;;
 ;; WORKFLOW EXAMPLE:
-;;   1. Open any file in ~/Projects/Photyx/
+;;   1. Open any file in ~/github/Photyx/
 ;;   2. Projectile auto-detects it as a project
-;;   3. Press C-c p f → type "logging" → instantly jump to logging.rs
-;;   4. Press C-c p s g → search for "handle_click" across all files
+;;   3. Press C-c p f   type "logging"   instantly jump to logging.rs
+;;   4. Press C-c p s g   search for "handle_click" across all files
 ;;
 ;; TIP: After pressing C-c p, wait a moment - which-key will show all options!
 (use-package projectile
   :config
   (projectile-mode +1)
+  (setq projectile-indexing-method 'native)
   :bind-keymap
   ("C-c p" . projectile-command-map))
-
-(setq projectile-tags-command "ctags -e -R -f \"%s\"")
-(setq projectile-tags-file-name "TAGS")
 
 ;; Magit: Professional Git interface - the best way to use Git
 ;; Replaces command-line git with an interactive, visual interface
@@ -292,68 +299,66 @@
 ;;   t       - Toggle timestamps
 ;;   q       - Quit visualizer
 ;;
-;; WHAT IT SOLVES:
-;;   Normal undo: You make changes → undo → undo → make new change → CAN'T get back to undone work!
-;;   Undo-tree: ALL changes are saved in a tree - you can navigate to ANY previous state
-;;
-;; EXAMPLE:
-;;   1. Write "hello"
-;;   2. Undo → write "goodbye"
-;;   3. Undo tree lets you get back to "hello" even though you made new changes!
-;;
 ;; TIP: C-x u to see the visual tree when you're lost in undo history
 (use-package undo-tree
   :config
   (global-undo-tree-mode)
   ;; Save undo history to ~/.emacs.d/undo-tree/ instead of project directories
-  (setq undo-tree-history-directory-alist '(("." . "~/.emacs.d/undo-tree/"))))
+  (setq undo-tree-history-directory-alist '(("." . "~/.emacs.d/undo-tree/")))
+  ;; Create undo-tree directory if it doesn't exist
+  (unless (file-exists-p "~/.emacs.d/undo-tree/")
+    (make-directory "~/.emacs.d/undo-tree/")))
 
 ;; Company: Code completion (shows autocomplete suggestions as you type)
 ;; Works with LSP to provide intelligent completions
 ;;
-;; USAGE (when enabled):
-;;   Just start typing → popup shows completions after a brief delay
+;; USAGE:
+;;   Just start typing   popup shows completions after a brief delay
 ;;   M-n / M-p      - Navigate down/up in completion list
 ;;   TAB or RET     - Accept selected completion
 ;;   C-g            - Cancel completion
 ;;   M-<digit>      - Quickly select completion by number (M-1, M-2, etc.)
 ;;
-;; CURRENTLY: Disabled globally (enable by uncommenting line below)
-;;
-;; WHY DISABLED:
-;;   LSP already provides completions - Company just makes the popup nicer
-;;   You can enable if you want prettier completion popups
-;;
-;; TO ENABLE:
-;;   Uncomment the line: (add-hook 'after-init-hook 'global-company-mode)
-;;   Restart Emacs → you'll get popup completions everywhere
-;;
-;; TIP: Try it both ways - some prefer LSP's default completion, some prefer Company's popups
+;; NOTE: Disabled in shell buffers to prevent interference with cd commands
 (use-package company
   :config
-  ;; Uncomment to enable globally for prettier completion popups
-  (add-hook 'after-init-hook 'global-company-mode)
-  )
-
+  ;; Don't enable company in shell/comint buffers
+  (setq company-global-modes '(not shell-mode comint-mode eshell-mode))
+  ;; Enable globally (except excluded modes above)
+  (add-hook 'after-init-hook 'global-company-mode))
 
 ;; Company-web: HTML/CSS/JavaScript completion for Company mode
 ;; Provides autocomplete for web technologies (HTML tags, CSS properties, etc.)
 ;;
 ;; USAGE:
 ;;   Automatically works when Company mode is enabled in web-related files
-;;   Type '<div' → see HTML tag completions
-;;   Type 'background-' → see CSS property completions
+;;   Type '<div'   see HTML tag completions
+;;   Type 'background-'   see CSS property completions
 ;;
 ;; REQUIRES: Company mode to be enabled (see above)
-;;
-;; NOTE: Works automatically, no commands to learn
 (use-package company-web)
 
-;; Flyspell: Spell checking
+;; Flyspell: Spell checking in comments and strings
 (use-package flyspell
   :hook (prog-mode . flyspell-prog-mode))
 
 ;; LSP Mode: Language Server Protocol
+;; Provides IDE features: autocomplete, error checking, refactoring, etc.
+;;
+;; KEY COMMANDS:
+;;   C-c l r r  - Rename symbol across project
+;;   C-c l g g  - Go to definition
+;;   C-c l g r  - Find references
+;;   C-c l a a  - Code actions (auto-fix, imports, etc.)
+;;   M-.        - Go to definition (alternative)
+;;   M-,        - Go back
+;;
+;; LANGUAGE SERVERS (install these in terminal):
+;;   rustup component add rust-analyzer
+;;   npm install -g typescript-language-server typescript
+;;   npm install -g svelte-language-server
+;;   pip install python-lsp-server --break-system-packages
+;;   npm install -g bash-language-server
 (use-package lsp-mode
   :commands lsp
   :hook ((python-mode . lsp)
@@ -362,10 +367,14 @@
          (svelte-mode . lsp)
          (sh-mode . lsp))
   :config
-  (setq lsp-enable-snippet nil))  ; Disable snippets
+  (setq lsp-enable-snippet nil)            ; Disable snippets
+  (setq lsp-keymap-prefix "C-c l"))        ; LSP commands under C-c l
 
 (use-package lsp-ui
-  :commands lsp-ui-mode)
+  :commands lsp-ui-mode
+  :config
+  (setq lsp-ui-doc-enable t)               ; Show docs on hover
+  (setq lsp-ui-sideline-enable t))         ; Show errors in sideline
 
 ;; Language modes
 (use-package markdown-mode
@@ -375,6 +384,10 @@
   :mode "\\.rs\\'"
   :hook (rust-mode . display-line-numbers-mode))
 
+;; Cargo: Rust build system integration
+;; C-c C-c C-b  - cargo build
+;; C-c C-c C-r  - cargo run
+;; C-c C-c C-t  - cargo test
 (use-package cargo
   :hook (rust-mode . cargo-minor-mode))
 
@@ -404,19 +417,16 @@
 (add-hook 'text-mode-hook 'turn-on-auto-fill)
 (add-hook 'shell-script-mode-hook 'turn-on-auto-fill)
 
-;;; LSP Language Server Installation Instructions:
-;; rustup component add rust-analyzer
-;; npm install -g typescript-language-server typescript
-;; npm install -g svelte-language-server
-;; pip install python-lsp-server --break-system-packages
-;; npm install -g bash-language-server
-;; npm install -g shellcheck
-
-;; Add NVM's current node version to PATH
-(let ((nvm-current "/home/stan/.nvm/versions/node/v20.20.2/bin"))
-  (when (file-directory-p nvm-current)
-    (setenv "PATH" (concat nvm-current ":" (getenv "PATH")))
-    (add-to-list 'exec-path nvm-current)))
+;; Add NVM node binaries to PATH for LSP language servers
+;; Update path if you upgrade Node version
+(let ((nvm-node-versions '("v20.20.2" "v20" "v18"))) ; Try these in order
+  (catch 'found
+    (dolist (ver nvm-node-versions)
+      (let ((path (expand-file-name (concat "~/.nvm/versions/node/" ver "/bin"))))
+        (when (file-directory-p path)
+          (setenv "PATH" (concat path ":" (getenv "PATH")))
+          (add-to-list 'exec-path path)
+          (throw 'found path))))))
 
 ;; Python
 (add-hook 'python-mode-hook 'hs-minor-mode)  ; Code folding
@@ -478,9 +488,9 @@
 (global-set-key [f3] 'hs-hide-all-comments)
 (global-set-key [f4] 'hs-show-all)
 (global-set-key [f5] 'goto-line)
-(global-set-key [f6] 'flymake-goto-prev-error)
-(global-set-key [f7] 'flymake-goto-next-error)
-(global-set-key [f8] 'flymake-display-err-menu-for-current-line)
+(global-set-key [f6] 'lsp-goto-previous-error)  ; LSP error navigation
+(global-set-key [f7] 'lsp-goto-next-error)       ; LSP error navigation
+(global-set-key [f8] 'lsp-ui-sideline-mode)      ; Toggle LSP sideline
 (global-set-key [f9] (read-kbd-macro "C-u M-."))
 (global-set-key [f11] 'hline)
 (global-set-key [f12] 'undo)
@@ -488,6 +498,7 @@
 ;; Custom bindings
 (global-set-key (kbd "M-g") 'goto-line)
 (global-set-key (kbd "C-c r") 'rename-file-and-buffer)
+(global-set-key (kbd "C-c t") 'cycle-my-themes)  ; Theme cycling
 
 ;; Position markers
 (global-set-key (kbd "C-x /") '(lambda () (interactive) (point-to-register ?1)))
@@ -612,11 +623,12 @@
                                   (shell-quote-argument buffer-file-name)))
            (message (concat "Saved as executable script: " buffer-file-name)))))
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; COLOR THEME
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; Theme cycling function - C-c t to switch between themes
+;; Cycles: cornsilk (light) → midnight-silk (dark) → modus-vivendi-deuteranopia (dark/accessible)
 (defun cycle-my-themes ()
   "Cycle between cornsilk, midnight-silk, and modus-vivendi-deuteranopia themes."
   (interactive)
@@ -634,29 +646,17 @@
     (load-theme 'cornsilk t)
     (message "Switched to cornsilk (light)"))))
 
-(global-set-key (kbd "C-c t") 'cycle-my-themes)
-
-
+;; Load custom themes from ~/.emacs.d/themes/
 (add-to-list 'custom-theme-load-path "~/.emacs.d/themes/")
+
+;; Load default theme at startup (change to 'cornsilk or 'modus-vivendi-deuteranopia if preferred)
 (load-theme 'midnight-silk t)
 
-
-;; Clipboard integration
-(setq x-select-enable-clipboard t)
-
-(add-to-list 'custom-theme-load-path "~/.emacs.d/themes/")
-
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; CUSTOM-SET-VARIABLES (auto-generated)
+;; CUSTOM-SET-VARIABLES (auto-generated - do not edit manually)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
  '(custom-safe-themes
    '("b05ec53e77a84979bd32c001c632e66ab24dc055908d7fe052f8628bfdbe4ad9"
      "04845a52986e2b78c4cb47abda3d1339c5024a66fee86447410f34010ef8d8b9"
@@ -672,12 +672,8 @@
  '(diff-switches "-u")
  '(package-selected-packages nil))
 
+(custom-set-faces)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; END OF CONFIGURATION
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
